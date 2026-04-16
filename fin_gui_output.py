@@ -50,6 +50,9 @@ allocation_button.pack(side=tk.LEFT, padx=5)
 future_value_button = tk.Button(button_frame, text="View Future Value Chart", command=lambda: show_future_value_chart())
 future_value_button.pack(side=tk.LEFT, padx=5)
 
+individual_performance_button = tk.Button(button_frame, text="View Individual Performance", command=lambda: show_individual_performance())
+individual_performance_button.pack(side=tk.LEFT, padx=5)
+
 output_box = scrolledtext.ScrolledText(root, wrap=tk.WORD, font=("Courier New", 10))
 output_box.pack(expand=True, fill="both")
 
@@ -155,7 +158,7 @@ def load_and_plot_investment_history():
         if x >= 1e6:
             return f'${x/1e6:,.3f}M'
         else:
-            return f'${x/1e3:,.0sf}K'
+            return f'${x/1e3:,.0f}K'
     
     ax.yaxis.set_major_formatter(FuncFormatter(currency_formatter))
     
@@ -187,6 +190,148 @@ def load_and_plot_investment_history():
     gui_print(f"Min value: ${min(values):,.2f} CAD")
     gui_print(f"Max value: ${max(values):,.2f} CAD")
     gui_print(f"Change: ${max(values) - min(values):,.2f} CAD ({(max(values) - min(values))/min(values)*100:,.2f}%)")
+
+
+def show_individual_performance():
+    """Load all saved portfolio output files and plot individual investment performance over time."""
+    directory = r'C:\Personal\personal\Finance and Taxes\investment_saves'
+    
+    if not directory:
+        return
+    
+    # Find all portfolio_output_*.txt files
+    pattern = r'portfolio_output_(\d{8}_\d{6})\.txt'
+    data_by_investment = {}  # Dict to store data for each investment
+    
+    for filename in os.listdir(directory):
+        match = re.match(pattern, filename)
+        if match:
+            filepath = os.path.join(directory, filename)
+            try:
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    date_str = match.group(1)
+                    date_obj = datetime.strptime(date_str, '%Y%m%d_%H%M%S')
+                    
+                    # Extract individual investment values
+                    # Pattern: "Investment Name TICKER: ... Market Value=$value CAD"
+                    investment_pattern = r'(.+?)\s+([A-Z0-9=\.]+):\s+(?:.*?)Market Value=\$([0-9,]+\.[0-9]{2})\s+CAD'
+                    for inv_match in re.finditer(investment_pattern, content):
+                        inv_name = inv_match.group(1).strip()
+                        inv_value_str = inv_match.group(3).replace(',', '')
+                        inv_value = float(inv_value_str)
+                        
+                        if inv_name not in data_by_investment:
+                            data_by_investment[inv_name] = []
+                        data_by_investment[inv_name].append((date_obj, inv_value))
+            except Exception as e:
+                gui_print(f"Error reading {filename}: {e}")
+    
+    if not data_by_investment:
+        messagebox.showinfo("No Data", "No individual investment data found.")
+        return
+    
+    # Sort each investment's data by date
+    for inv_name in data_by_investment:
+        data_by_investment[inv_name].sort(key=lambda x: x[0])
+    
+    # Create a new window for charts
+    new_window = tk.Toplevel(root)
+    new_window.title("Individual Investment Performance")
+    new_window.geometry("1200x700")
+    
+    # Create a frame for controls
+    control_frame = tk.Frame(new_window)
+    control_frame.pack(pady=5)
+    
+    tk.Label(control_frame, text="Select Investment:", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=5)
+    
+    # Dropdown to select which investment to view
+    selected_inv_var = tk.StringVar(value=list(data_by_investment.keys())[0])
+    inv_dropdown = tk.OptionMenu(new_window, selected_inv_var, *sorted(data_by_investment.keys()))
+    inv_dropdown.pack(side=tk.LEFT, padx=5)
+    
+    # Canvas holder for redraw
+    canvas_holder = {'canvas': None}
+    
+    def draw_investment_chart():
+        # Remove old chart if exists
+        if canvas_holder['canvas'] is not None:
+            canvas_holder['canvas'].get_tk_widget().destroy()
+        
+        inv_name = selected_inv_var.get()
+        data = data_by_investment[inv_name]
+        
+        if not data:
+            return
+        
+        dates = [item[0] for item in data]
+        values = [item[1] for item in data]
+        
+        # Calculate percentage gains
+        initial_value = values[0]
+        gains = [(v - initial_value) / initial_value * 100 for v in values]
+        
+        # Create segments for percentage gain coloring (green/red)
+        segments = []
+        current_segment = {'dates': [], 'gains': [], 'color': None}
+        for i in range(len(gains)):
+            color = 'green' if gains[i] >= 0 else 'red'
+            if current_segment['color'] != color:
+                if current_segment['dates']:
+                    segments.append(current_segment)
+                current_segment = {'dates': [dates[i]], 'gains': [gains[i]], 'color': color}
+            else:
+                current_segment['dates'].append(dates[i])
+                current_segment['gains'].append(gains[i])
+        if current_segment['dates']:
+            segments.append(current_segment)
+        
+        # Create the plot
+        fig, ax = plt.subplots(figsize=(12, 6))
+        ax.plot(dates, values, marker='o', linestyle='-', linewidth=2, markersize=6, label=inv_name)
+        ax.set_title(f"{inv_name} - Performance Over Time with Percentage Gain", fontsize=14, fontweight='bold')
+        ax.set_xlabel("Date", fontsize=12)
+        ax.set_ylabel("Investment Value (CAD)", fontsize=12)
+        ax.grid(True, alpha=0.3)
+        
+        # Format y-axis to show values with commas and currency
+        def currency_formatter(x, _):
+            if x >= 1e6:
+                return f'${x/1e6:,.3f}M'
+            else:
+                return f'${x/1e3:,.0f}K'
+        
+        ax.yaxis.set_major_formatter(FuncFormatter(currency_formatter))
+        
+        # Second y-axis for percentage gain
+        ax2 = ax.twinx()
+        for i, segment in enumerate(segments):
+            label = 'Percentage Gain' if i == 0 else None
+            ax2.plot(segment['dates'], segment['gains'], linestyle='-', color=segment['color'], linewidth=2, label=label)
+        ax2.set_ylabel("Percentage Gain (%)", fontsize=12, color='black')
+        ax2.tick_params(axis='y', labelcolor='black')
+        ax2.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x:.1f}%'))
+        
+        # Add legend
+        lines1, labels1 = ax.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+        
+        # Rotate x-axis labels for better readability
+        fig.autofmt_xdate(rotation=45, ha='right')
+        
+        # Embed the figure
+        canvas_holder['canvas'] = FigureCanvasTkAgg(fig, master=new_window)
+        canvas_holder['canvas'].draw()
+        canvas_holder['canvas'].get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+
+    # Bind dropdown change to redraw
+    selected_inv_var.trace('w', lambda *args: draw_investment_chart())
+    
+    # Initial draw
+    draw_investment_chart()
 
 
 def on_closing():
