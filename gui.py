@@ -16,7 +16,7 @@ def set_callbacks(callback_dict):
 
 def create_gui(root):
     """
-    Set up the main GUI window with buttons and output box.
+    Set up the main GUI window with menu bar and output box.
     
     Args:
         root: Tkinter root window
@@ -27,51 +27,24 @@ def create_gui(root):
     root.title("Investment Portfolio Summary")
     root.geometry("800x600")
 
-    # Button frame for horizontal layout
-    button_frame = tk.Frame(root)
-    button_frame.pack(pady=5)
+    # Create menu bar
+    menubar = tk.Menu(root)
+    root.config(menu=menubar)
 
-    save_button = tk.Button(
-        button_frame, 
-        text="Save Output", 
-        command=lambda: callbacks.get('save_output', lambda: None)()
-    )
-    save_button.pack(side=tk.LEFT, padx=5)
+    # File menu
+    file_menu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="File", menu=file_menu)
+    file_menu.add_command(label="Save Output", command=lambda: callbacks.get('save_output', lambda: None)())
 
-    history_button = tk.Button(
-        button_frame, 
-        text="View Investment History", 
-        command=lambda: callbacks.get('load_history', lambda: None)()
-    )
-    history_button.pack(side=tk.LEFT, padx=5)
-
-    allocation_button = tk.Button(
-        button_frame, 
-        text="Asset Allocation Chart", 
-        command=lambda: callbacks.get('draw_allocation', lambda: None)()
-    )
-    allocation_button.pack(side=tk.LEFT, padx=5)
-
-    future_value_button = tk.Button(
-        button_frame, 
-        text="View Future Value Chart", 
-        command=lambda: callbacks.get('show_future_value', lambda: None)()
-    )
-    future_value_button.pack(side=tk.LEFT, padx=5)
-
-    expense_predictor_button = tk.Button(
-        button_frame, 
-        text="Annual Expense Capacity", 
-        command=lambda: callbacks.get('show_expense_predictor', lambda: None)()
-    )
-    expense_predictor_button.pack(side=tk.LEFT, padx=5)
-
-    individual_performance_button = tk.Button(
-        button_frame, 
-        text="View Individual Performance", 
-        command=lambda: callbacks.get('show_individual_perf', lambda: None)()
-    )
-    individual_performance_button.pack(side=tk.LEFT, padx=5)
+    # Charts menu
+    charts_menu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="Charts", menu=charts_menu)
+    charts_menu.add_command(label="View Investment History", command=lambda: callbacks.get('load_history', lambda: None)())
+    charts_menu.add_command(label="Asset Allocation Chart", command=lambda: callbacks.get('draw_allocation', lambda: None)())
+    charts_menu.add_command(label="View Future Value Chart", command=lambda: callbacks.get('show_future_value', lambda: None)())
+    charts_menu.add_command(label="Annual Expense Capacity", command=lambda: callbacks.get('show_expense_predictor', lambda: None)())
+    charts_menu.add_command(label="View Individual Performance", command=lambda: callbacks.get('show_individual_perf', lambda: None)())
+    charts_menu.add_command(label="SWR Trends", command=lambda: callbacks.get('show_swr_trends', lambda: None)())
 
     output_box = scrolledtext.ScrolledText(root, wrap=tk.WORD, font=("Courier New", 10))
     output_box.pack(expand=True, fill="both")

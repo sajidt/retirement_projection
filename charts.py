@@ -143,20 +143,18 @@ def show_future_value_chart(root, portfolio_data: dict):
     draw_future_value_chart_impl()
 
 
-def show_annual_expense_predictor(root, portfolio_data: dict):
+def show_swr_trends(root):
     """
-    Show annual expense capacity based on historical portfolio data.
-    Plots what could have been withdrawn at different rates over time.
+    Show Safe Withdrawal Rate trends over time based on historical data.
     
     Args:
         root: Tkinter root window
-        portfolio_data: Dict with portfolio totals
     """
     new_window = tk.Toplevel(root)
-    new_window.title("Annual Expense Capacity")
+    new_window.title("SWR Trends")
     new_window.geometry("1000x700")
     
-    # Load historical portfolio data
+    # Load historical data
     directory = r'C:\Personal\personal\Finance and Taxes\investment_saves'
     
     pattern = r'portfolio_output_(\d{8}_\d{6})\.txt'
@@ -170,55 +168,45 @@ def show_annual_expense_predictor(root, portfolio_data: dict):
                 try:
                     with open(filepath, 'r', encoding='utf-8') as f:
                         content = f.read()
-                        match_value = re.search(r'Total Investments = ([0-9,]+\.[0-9]{2})', content)
-                        if match_value:
-                            value_str = match_value.group(1).replace(',', '')
-                            value = float(value_str)
+                        # Extract "125k with investment expenses" value
+                        match_swr = re.search(r'125k with investment expenses = ([0-9,]+\.[0-9]{2})', content)
+                        if match_swr:
+                            swr_value_str = match_swr.group(1).replace(',', '')
+                            swr_value = float(swr_value_str)
                             date_str = match.group(1)
                             date_obj = datetime.strptime(date_str, '%Y%m%d_%H%M%S')
-                            data.append((date_obj, value))
+                            data.append((date_obj, swr_value))
                 except Exception as e:
                     gui_print(f"Error reading {filename}: {e}")
     
     if not data:
-        messagebox.showerror("No Data", f"No portfolio data found in {directory}")
+        messagebox.showerror("No Data", f"No SWR data found in {directory}")
         new_window.destroy()
         return
     
     # Sort by date
     data.sort(key=lambda x: x[0])
     dates = [item[0] for item in data]
-    portfolio_values = [item[1] for item in data]
-    
-    # Calculate withdrawal amounts for each rate
-    withdrawal_rates = [0.02, 0.025, 0.03, 0.035, 0.04]
-    withdrawals_by_rate = {}
-    
-    for rate in withdrawal_rates:
-        withdrawals_by_rate[rate] = [pv * rate for pv in portfolio_values]
+    swr_values = [item[1] for item in data]
     
     # Create the plot
     fig, ax = plt.subplots(figsize=(12, 8))
     
-    colors = ['blue', 'green', 'orange', 'red', 'purple']
-    for i, rate in enumerate(withdrawal_rates):
-        label = f'{rate*100:.1f}% Withdrawal'
-        ax.plot(dates, withdrawals_by_rate[rate], marker='o', linestyle='-', 
-               linewidth=2, label=label, color=colors[i])
+    ax.plot(dates, swr_values, marker='o', linestyle='-', linewidth=2, markersize=6, 
+           color='blue', label='Safe Withdrawal Rate (%)')
     
-    ax.set_title("Annual Expense Capacity - Historical Withdrawal Capacity Over Time", fontsize=14, fontweight='bold')
+    ax.set_title("Safe Withdrawal Rate Trends Over Time", fontsize=14, fontweight='bold')
     ax.set_xlabel("Date", fontsize=12)
-    ax.set_ylabel("Annual Withdrawal Capacity (CAD)", fontsize=12)
+    ax.set_ylabel("Safe Withdrawal Rate (%)", fontsize=12)
     ax.grid(True, alpha=0.3)
     
-    # Format y-axis to show currency
-    def currency_formatter(x, _):
-        if x >= 1e6:
-            return f'${x/1e6:,.1f}M'
-        else:
-            return f'${x/1e3:,.0f}K'
+    # Format y-axis to show percentages
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x:.2f}%'))
     
-    ax.yaxis.set_major_formatter(FuncFormatter(currency_formatter))
+    # Add horizontal reference lines for common SWR guidelines
+    ax.axhline(y=4.0, color='red', linestyle='--', alpha=0.7, label='4% Rule')
+    ax.axhline(y=3.0, color='orange', linestyle='--', alpha=0.7, label='3% Rule')
+    
     ax.legend(loc='upper left', fontsize=10)
     
     # Rotate x-axis labels for better readability
@@ -228,3 +216,16 @@ def show_annual_expense_predictor(root, portfolio_data: dict):
     canvas = FigureCanvasTkAgg(fig, master=new_window)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+    
+    # Print summary statistics
+    current_swr = swr_values[-1] if swr_values else 0
+    min_swr = min(swr_values) if swr_values else 0
+    max_swr = max(swr_values) if swr_values else 0
+    avg_swr = sum(swr_values) / len(swr_values) if swr_values else 0
+    
+    gui_print(f"\n\nSWR Trends Summary:")
+    gui_print(f"Current SWR: {current_swr:.2f}%")
+    gui_print(f"Minimum SWR: {min_swr:.2f}%")
+    gui_print(f"Maximum SWR: {max_swr:.2f}%")
+    gui_print(f"Average SWR: {avg_swr:.2f}%")
+    gui_print(f"Data points: {len(data)}")

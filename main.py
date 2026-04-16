@@ -52,6 +52,7 @@ def main():
         'show_future_value': lambda: charts.show_future_value_chart(root, portfolio_data),
         'show_expense_predictor': lambda: charts.show_annual_expense_predictor(root, portfolio_data),
         'show_individual_perf': lambda: history.show_individual_performance(root),
+        'show_swr_trends': lambda: charts.show_swr_trends(root),
     }
     
     gui.set_callbacks(callbacks)
