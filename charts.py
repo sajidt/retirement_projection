@@ -6,12 +6,95 @@ import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
 import numpy as np
+import matplotlib as mpl
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.ticker import FuncFormatter
 
 # Reference to gui_print function (will be set by main)
 gui_print_func = None
+
+def _create_tooltip_annotation(ax):
+    annot = ax.annotate(
+        "",
+        xy=(0, 0),
+        xytext=(15, 15),
+        textcoords="offset points",
+        bbox=dict(boxstyle="round,pad=0.4", fc="yellow", alpha=0.9),
+        arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0")
+    )
+    annot.set_visible(False)
+    return annot
+
+
+def _attach_hover_tooltip(canvas, ax, artists, formatter):
+    annot = _create_tooltip_annotation(ax)
+    fig = ax.figure
+    pixel_tolerance = 8
+
+    def hover(event):
+        if event.inaxes is None:
+            if annot.get_visible():
+                annot.set_visible(False)
+                canvas.draw_idle()
+            return
+
+        hit = False
+        for artist in artists:
+            if isinstance(artist, mpl.container.BarContainer):
+                for bar in artist:
+                    contains, _ = bar.contains(event)
+                    if contains:
+                        x = bar.get_x() + bar.get_width() / 2
+                        y = bar.get_height()
+                        text = formatter(x, y, bar)
+                        annot.xy = (x, y)
+                        annot.set_text(text)
+                        annot.set_visible(True)
+                        hit = True
+                        break
+                if hit:
+                    break
+
+            elif isinstance(artist, mpl.lines.Line2D):
+                contains, ind = artist.contains(event)
+                xdata = np.asarray(artist.get_xdata())
+                ydata = np.asarray(artist.get_ydata())
+                idx = None
+                ind_values = ind.get("ind")
+                if contains and ind_values is not None and len(ind_values) > 0:
+                    idx = ind_values[0]
+                else:
+                    if xdata.dtype.kind in ('M', 'O'):
+                        xdata_num = mdates.date2num(xdata)
+                    else:
+                        xdata_num = xdata.astype(float)
+                    ydata_num = ydata.astype(float)
+                    xy_pixels = ax.transData.transform(np.column_stack([xdata_num, ydata_num]))
+                    dx = np.abs(xy_pixels[:, 0] - event.x)
+                    dy = np.abs(xy_pixels[:, 1] - event.y)
+                    dist = np.hypot(dx, dy)
+                    idx = np.argmin(dist)
+                    if dist[idx] > pixel_tolerance:
+                        idx = None
+                if idx is not None:
+                    x = xdata[idx]
+                    y = ydata[idx]
+                    text = formatter(x, y, artist)
+                    annot.xy = (x, y)
+                    annot.set_text(text)
+                    annot.set_visible(True)
+                    hit = True
+                    break
+
+        if not hit and annot.get_visible():
+            annot.set_visible(False)
+            canvas.draw_idle()
+        elif hit:
+            canvas.draw_idle()
+
+    canvas.mpl_connect("motion_notify_event", hover)
 
 
 def set_gui_print(func):
@@ -121,9 +204,9 @@ def show_future_value_chart(root, portfolio_data: dict):
             annual_consumption_pessimistic *= 1.03
 
         fig2, ax2 = plt.subplots(figsize=(12, 8))
-        ax2.plot(years, future_values, marker='o', label='No Consumption')
-        ax2.plot(years, future_values_consumption, marker='x', linestyle='--', color='red', label='2.5% Consumption + 3% Inflation')
-        ax2.plot(years, future_values_consumption_pessimistic, marker='x', linestyle=':', color='orange', label='2.5% Consumption + 3% Inflation (Pessimistic)')
+        line_no_consumption, = ax2.plot(years, future_values, marker='o', label='No Consumption')
+        line_consumption, = ax2.plot(years, future_values_consumption, marker='x', linestyle='--', color='red', label='2.5% Consumption + 3% Inflation')
+        line_pessimistic, = ax2.plot(years, future_values_consumption_pessimistic, marker='x', linestyle=':', color='orange', label='2.5% Consumption + 3% Inflation (Pessimistic)')
         ax2.set_title("Projected Future Value of Investments", fontsize=14, fontweight='bold')
         ax2.set_xlabel("Years", fontsize=12)
         ax2.set_ylabel("Portfolio Value (CAD)", fontsize=12)
@@ -132,15 +215,86 @@ def show_future_value_chart(root, portfolio_data: dict):
         ax2.yaxis.set_major_formatter(formatter)
         ax2.legend()
 
+        for line in (line_no_consumption, line_consumption, line_pessimistic):
+            line.set_picker(5)
+
         canvas_holder['canvas'] = FigureCanvasTkAgg(fig2, master=new_window)
         canvas_holder['canvas'].draw()
         canvas_holder['canvas'].get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        def format_future_value_tooltip(x, y, artist):
+            return f"Year: {int(x)}\nValue: ${y:,.0f} CAD"
+
+        _attach_hover_tooltip(canvas_holder['canvas'], ax2, [line_no_consumption, line_consumption, line_pessimistic], format_future_value_tooltip)
     
     redraw_button = tk.Button(years_frame, text="Redraw Chart", command=draw_future_value_chart_impl)
     redraw_button.pack(side=tk.LEFT, padx=5)
     
     # Initial draw
     draw_future_value_chart_impl()
+
+
+def show_annual_expense_predictor(root, portfolio_data: dict):
+    """
+    Show annual expense capacity projections in a new popup window.
+
+    Args:
+        root: Tkinter root window
+        portfolio_data: Dict with portfolio totals and calculations
+    """
+    new_window = tk.Toplevel(root)
+    new_window.title("Annual Expense Capacity")
+    new_window.geometry("900x700")
+
+    tot_cad = portfolio_data.get('tot_cad', 0)
+    expense_ratio_net = portfolio_data.get('expense_ratio_net', 0)
+    if tot_cad == 0:
+        messagebox.showerror("Data Error", "Portfolio total value is zero or unavailable.")
+        new_window.destroy()
+        return
+
+    labels = ["2.0%", "2.5%", "3.0%", "3.5%", "4.0%"]
+    values = [tot_cad * pct for pct in [0.02, 0.025, 0.03, 0.035, 0.04]]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.bar(labels, values, color=["#4c72b0", "#55a868", "#c44e52", "#8172b3", "#ccb974"])
+    ax.set_title("Annual Expense Capacity from Total Portfolio", fontsize=14, fontweight='bold')
+    ax.set_xlabel("Withdrawal Rate", fontsize=12)
+    ax.set_ylabel("Annual CAD Capacity", fontsize=12)
+    ax.grid(axis='y', alpha=0.3)
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'${x/1e3:,.0f}k'))
+
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f'${height/1e3:,.1f}k',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 6),
+                    textcoords='offset points',
+                    ha='center', va='bottom', fontsize=10)
+
+    canvas = FigureCanvasTkAgg(fig, master=new_window)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    def format_expense_tooltip(x, y, artist):
+        label = artist.get_label() if hasattr(artist, 'get_label') else ''
+        return f"{label}\nAnnual Capacity: ${y:,.0f} CAD"
+
+    _attach_hover_tooltip(canvas, ax, [bars], format_expense_tooltip)
+
+    summary_frame = tk.Frame(new_window)
+    summary_frame.pack(fill=tk.X, padx=10, pady=10)
+
+    annual_125k = 125000 / tot_cad * 100 + expense_ratio_net
+    summary_text = (
+        f"Total Portfolio Value: ${tot_cad:,.2f} CAD\n"
+        f"Net Expense Ratio: {expense_ratio_net:,.2f}%\n"
+        f"125k with investment expenses metric: {annual_125k:,.2f}\n"
+        f"\nUse these rates as a guide to annual spending capacity based on your current portfolio."
+    )
+
+    summary_label = tk.Label(summary_frame, text=summary_text, justify=tk.LEFT, font=("Helvetica", 11))
+    summary_label.pack(fill=tk.X)
 
 
 def show_swr_trends(root):
@@ -191,8 +345,7 @@ def show_swr_trends(root):
     
     # Create the plot
     fig, ax = plt.subplots(figsize=(12, 8))
-    
-    ax.plot(dates, swr_values, marker='o', linestyle='-', linewidth=2, markersize=6, 
+    line, = ax.plot(dates, swr_values, marker='o', linestyle='-', linewidth=2, markersize=6, 
            color='blue', label='Safe Withdrawal Rate (%)')
     
     ax.set_title("Safe Withdrawal Rate Trends Over Time", fontsize=14, fontweight='bold')
@@ -212,10 +365,21 @@ def show_swr_trends(root):
     # Rotate x-axis labels for better readability
     fig.autofmt_xdate(rotation=45, ha='right')
     
+    line.set_picker(5)
+
     # Embed the figure
     canvas = FigureCanvasTkAgg(fig, master=new_window)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    def format_swr_tooltip(x, y, artist):
+        if isinstance(x, datetime):
+            date_str = x.strftime('%Y-%m-%d')
+        else:
+            date_str = str(x)
+        return f"{date_str}\nSWR: {y:.2f}%"
+
+    _attach_hover_tooltip(canvas, ax, [line], format_swr_tooltip)
     
     # Print summary statistics
     current_swr = swr_values[-1] if swr_values else 0

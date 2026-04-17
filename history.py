@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.ticker import FuncFormatter
 
+from charts import _attach_hover_tooltip
+
 # Reference to gui_print function (will be set by main)
 gui_print_func = None
 
@@ -88,7 +90,8 @@ def load_and_plot_investment_history(root, directory: str = None):
     # Calculate percentage gains
     initial_value = values[0]
     gains = [(v - initial_value) / initial_value * 100 for v in values]
-    
+    gain_lookup = {dates[i]: gains[i] for i in range(len(dates))}
+
     # Create segments for percentage gain coloring
     segments = []
     current_segment = {'dates': [], 'gains': [], 'color': None}
@@ -111,9 +114,8 @@ def load_and_plot_investment_history(root, directory: str = None):
     
     # Create the plot
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(dates, values, marker='o', linestyle='-', linewidth=2, markersize=6, label='Total Investments')
-    ax.set_title("Total Investments Over Time with Percentage Gain", fontsize=14, fontweight='bold')
-    ax.set_xlabel("Date", fontsize=12)
+    line, = ax.plot(dates, values, marker='o', linestyle='-', linewidth=2, markersize=6, label='Total Investments')
+    line.set_picker(8)
     ax.set_ylabel("Total Investments (CAD)", fontsize=12)
     ax.grid(True, alpha=0.3)
     
@@ -148,11 +150,18 @@ def load_and_plot_investment_history(root, directory: str = None):
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
     
-    # Print summary to console
-    gui_print(f"\n\nLoaded {len(data)} historical records")
-    gui_print(f"Date range: {dates[0].strftime('%Y-%m-%d %H:%M:%S')} to {dates[-1].strftime('%Y-%m-%d %H:%M:%S')}")
-    gui_print(f"Min value: ${min(values):,.2f} CAD")
-    gui_print(f"Max value: ${max(values):,.2f} CAD")
+    def format_history_tooltip(x, y, artist):
+        if isinstance(x, datetime):
+            x_text = x.strftime('%Y-%m-%d %H:%M:%S')
+            gain = gain_lookup.get(x, None)
+        else:
+            x_text = str(x)
+            gain = None
+        gain_text = f"\nPercentage Gain: {gain:.2f}%" if gain is not None else ""
+        return f"{x_text}\nTotal Value: ${y:,.2f} CAD{gain_text}"
+
+    _attach_hover_tooltip(canvas, ax, [line], format_history_tooltip)
+
     gui_print(f"Change: ${max(values) - min(values):,.2f} CAD ({(max(values) - min(values))/min(values)*100:,.2f}%)")
 
 
@@ -261,7 +270,8 @@ def show_individual_performance(root, directory: str = None):
         # Calculate percentage gains
         initial_value = values[0]
         gains = [(v - initial_value) / initial_value * 100 for v in values]
-        
+        gain_lookup = {dates[i]: gains[i] for i in range(len(dates))}
+
         # Create segments for percentage gain coloring (green/red)
         segments = []
         current_segment = {'dates': [], 'gains': [], 'color': None}
@@ -279,7 +289,8 @@ def show_individual_performance(root, directory: str = None):
         
         # Create the plot
         fig, ax = plt.subplots(figsize=(12, 6))
-        ax.plot(dates, values, marker='o', linestyle='-', linewidth=2, markersize=6, label=inv_name)
+        line, = ax.plot(dates, values, marker='o', linestyle='-', linewidth=2, markersize=6, label=inv_name)
+        line.set_picker(8)
         ax.set_title(f"{inv_name} - Performance Over Time with Percentage Gain", fontsize=14, fontweight='bold')
         ax.set_xlabel("Date", fontsize=12)
         ax.set_ylabel("Investment Value (CAD)", fontsize=12)
@@ -315,9 +326,22 @@ def show_individual_performance(root, directory: str = None):
         canvas_holder['canvas'] = FigureCanvasTkAgg(fig, master=new_window)
         canvas_holder['canvas'].draw()
         canvas_holder['canvas'].get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        def format_individual_tooltip(x, y, artist):
+            if isinstance(x, datetime):
+                x_text = x.strftime('%Y-%m-%d %H:%M:%S')
+                gain = gain_lookup.get(x, None)
+            else:
+                x_text = str(x)
+                gain = None
+            gain_text = f"\nPercentage Gain: {gain:.2f}%" if gain is not None else ""
+            return f"{inv_name}\n{x_text}\nValue: ${y:,.2f} CAD{gain_text}"
+
+        _attach_hover_tooltip(canvas_holder['canvas'], ax, [line], format_individual_tooltip)
     
     # Bind dropdown change to redraw
     selected_inv_var.trace('w', lambda *args: draw_investment_chart())
+    draw_investment_chart()
     
     # Initial draw
     draw_investment_chart()
