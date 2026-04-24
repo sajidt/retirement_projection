@@ -8,6 +8,7 @@ import gui
 import business_logic as bl
 import history
 import charts
+import ai
 
 
 def main():
@@ -53,6 +54,7 @@ def main():
         'show_expense_predictor': lambda: charts.show_annual_expense_predictor(root, portfolio_data),
         'show_individual_perf': lambda: history.show_individual_performance(root),
         'show_swr_trends': lambda: charts.show_swr_trends(root),
+        'open_ai_chat': lambda: ai.open_chat_window(root, output_box.get("1.0", tk.END).rstrip()),
     }
     
     gui.set_callbacks(callbacks)

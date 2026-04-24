@@ -3,6 +3,7 @@
 import tkinter as tk
 from tkinter import scrolledtext, filedialog, messagebox
 from datetime import datetime
+import ai
 
 # Reference to callbacks (will be set by main)
 callbacks = {}
@@ -45,6 +46,11 @@ def create_gui(root):
     charts_menu.add_command(label="Annual Expense Capacity", command=lambda: callbacks.get('show_expense_predictor', lambda: None)())
     charts_menu.add_command(label="View Individual Performance", command=lambda: callbacks.get('show_individual_perf', lambda: None)())
     charts_menu.add_command(label="SWR Trends", command=lambda: callbacks.get('show_swr_trends', lambda: None)())
+
+    # AI menu
+    ai_menu = tk.Menu(menubar, tearoff=0)
+    menubar.add_cascade(label="AI", menu=ai_menu)
+    ai_menu.add_command(label="Chat with AI", command=lambda: callbacks.get('open_ai_chat', lambda: None)())
 
     output_box = scrolledtext.ScrolledText(root, wrap=tk.WORD, font=("Courier New", 10))
     output_box.pack(expand=True, fill="both")
