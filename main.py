@@ -1,7 +1,6 @@
 """Main entry point for the Investment Portfolio Summary application."""
 
 import tkinter as tk
-from constants import investments, currency_ticker
 
 # Import modules
 import gui
@@ -10,6 +9,7 @@ import history
 import charts
 import ai
 
+DEMO_MODE = True  # Set to True to enable demo mode with default data and directories
 
 def main():
     """Main application entry point."""
@@ -26,18 +26,18 @@ def main():
     
     # Set gui_print references in all modules
     bl.set_gui_print(print_to_gui)
+    bl.set_demo_mode(DEMO_MODE)
     history.set_gui_print(print_to_gui)
+    history.set_demo_mode(DEMO_MODE)
     charts.set_gui_print(print_to_gui)
+    gui.set_demo_mode(DEMO_MODE)
     
     # ---------------------------
     # Main calculations
     # ---------------------------
-    
-    # Get currency conversion
-    usdcad = bl.get_currency_conversion(currency_ticker)
-    
+       
     # Process investments
-    portfolio_data = bl.process_investments(investments, usdcad)
+    portfolio_data = bl.process_investments()
     
     # Print investment summary
     bl.print_investment_summary(portfolio_data)
@@ -53,7 +53,7 @@ def main():
         'show_future_value': lambda: charts.show_future_value_chart(root, portfolio_data),
         'show_expense_predictor': lambda: charts.show_annual_expense_predictor(root, portfolio_data),
         'show_individual_perf': lambda: history.show_individual_performance(root),
-        'show_swr_trends': lambda: charts.show_swr_trends(root),
+        'show_swr_trends': lambda: history.show_swr_trends(root),
         'open_ai_chat': lambda: ai.open_chat_window(root, output_box.get("1.0", tk.END).rstrip()),
     }
     

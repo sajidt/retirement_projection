@@ -1,0 +1,84 @@
+Currency USDCAD=X = $1.36
+TSX/S&P Composite ESGC.TO: Price: $39.82 CAD
+TSX/S&P Composite ESGC.TO: Market Value=$398,200.00 CAD ($292,630.59 USD)
+S&P500 QUU QUU.TO: Price: $283.58 CAD
+S&P500 QUU QUU.TO: Market Value=$32,044.54 CAD ($23,549.00 USD)
+Nasdaq 100 QQQM: Price: $272.72 USD
+Nasdaq 100 QQQM: Market Value=$92,776.62 CAD ($68,180.00 USD)
+Muni Bond Fund MUB: Price: $107.07 USD
+Muni Bond Fund MUB: Market Value=$72,851.69 CAD ($53,537.50 USD)
+Emerging Market ETF IEMG: Price: $77.75 USD
+Emerging Market ETF IEMG: Market Value=$37,029.68 CAD ($27,212.50 USD)
+Schwab Intl ETF SCHF: Price: $26.43 USD
+Schwab Intl ETF SCHF: Market Value=$10,431.79 CAD ($7,666.15 USD)
+Schwab US Broad Market SCHB: Price: $27.55 USD
+Schwab US Broad Market SCHB: Market Value=$8,097.64 CAD ($5,950.82 USD)
+Schwab US Dividend SCHD: Price: $32.03 USD
+Schwab US Dividend SCHD: Market Value=$11,984.04 CAD ($8,806.88 USD)
+Vanguard Developed Market ETF VEA: Price: $68.44 USD
+Vanguard Developed Market ETF VEA: Market Value=$40,977.38 CAD ($30,113.60 USD)
+Vanguard Emerging Market ETF VWO: Price: $58.53 USD
+Vanguard Emerging Market ETF VWO: Market Value=$5,575.65 CAD ($4,097.45 USD)
+Vanguard Tax Exempt Bond Fund VTEB: Price: $50.30 USD
+Vanguard Tax Exempt Bond Fund VTEB: Market Value=$3,422.32 CAD ($2,515.00 USD)
+Vanguard Total Stock Market Index Fund VTI: Price: $351.85 USD
+Vanguard Total Stock Market Index Fund VTI: Market Value=$127,833.35 CAD ($93,942.62 USD)
+Fidelity Total Stock Market Index FSKAX: Price: $195.74 USD
+Fidelity Total Stock Market Index FSKAX: Market Value=$7,457.94 CAD ($5,480.72 USD)
+Vanguard 500 IDX Sel VFFSX: Price: $349.36 USD
+Vanguard 500 IDX Sel VFFSX: Market Value=$237,697.55 CAD ($174,680.00 USD)
+Vanguard Russel 2000 VTWO: Price: $111.41 USD
+Vanguard Russel 2000 VTWO: Market Value=$30,320.45 CAD ($22,282.00 USD)
+Fidelity International FTIHX: Price: $18.69 USD
+Fidelity International FTIHX: Market Value=$20,346.08 CAD ($14,952.00 USD)
+
+
+Cash = $10,000.00 CAD
+Cash = $20,000.00 USD
+ESGC.TO: $398,200.00 : 0.00%
+QUU.TO: $32,044.54 : 0.06%
+QQQM: $92,776.62 : 0.15%
+MUB: $72,851.69 : 0.05%
+IEMG: $37,029.68 : 0.09%
+SCHF: $10,431.79 : 0.06%
+SCHB: $8,097.64 : 0.03%
+SCHD: $11,984.04 : 0.06%
+VEA: $40,977.38 : 0.03%
+VWO: $5,575.65 : 0.07%
+VTEB: $3,422.32 : 0.03%
+VTI: $127,833.35 : 0.03%
+FSKAX: $7,457.94 : 0.01%
+VFFSX: $237,697.55 : 0.01%
+VTWO: $30,320.45 : 0.04%
+FTIHX: $20,346.08 : 0.06%
+
+
+Investment Expense = $348.45 CAD
+Net Expense Ratio = 0.03%
+
+
+Total Investments = 1,174,261.92 CAD
+
+
+Total Cash = 37,215.20 CAD : %Cash = 3.17%
+Total International Stock = 114,360.58 CAD : %Intl = 9.74%
+Total Canadian Stock = 398,200.00 CAD :  %Canada = 33.91%
+Total US Stock = 548,212.14 CAD :  %US = 46.69%
+Total Bond = 76,274.00 CAD : %Bond = 6.50%
+
+2.0% of Total = $23,485.24 CAD
+2.5% of Total = $29,356.55 CAD
+3.0% of Total = $35,227.86 CAD
+3.5% of Total = $41,099.17 CAD
+4.0% of Total = $46,970.48 CAD
+125k with investment expenses = 10.67
+
+
+Total Expected Weighted Average Return of Investments = 8.37%
+
+80% of Total = $939,409.54 CAD
+2.5% of Total = $23,485.24 CAD
+3.0% of Total = $28,182.29 CAD
+3.5% of Total = $32,879.33 CAD
+4.0% of Total = $37,576.38 CAD
+125k with investment expenses = 13.34

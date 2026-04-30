@@ -1,7 +1,19 @@
 """Business logic for investment calculations and analysis."""
 
+from datetime import datetime, timedelta
+from typing import Optional
+
 import yfinance as yf
-from constants import investments, CASH_CAD, CASH_USD, FUTURE, currency_ticker
+
+DEMO_MODE = False
+
+# Portfolio data (will be set by set_demo_mode)
+investments = None
+CASH_CAD = None
+CASH_USD = None
+FUTURE = None
+currency_ticker = None
+
 
 # Global variables for tracking totals
 tot_cad = 0
@@ -18,6 +30,28 @@ investment_list = {}
 
 # Reference to gui_print function (will be set by main)
 gui_print_func = None
+
+def set_demo_mode(is_demo: bool):
+    """Set demo mode and load appropriate portfolio data."""
+    global DEMO_MODE, investments, CASH_CAD, CASH_USD, FUTURE, currency_ticker
+    DEMO_MODE = is_demo
+    
+    if is_demo:
+        import demo_portfolio
+        investments = demo_portfolio.investments
+        CASH_CAD = demo_portfolio.CASH_CAD
+        CASH_USD = demo_portfolio.CASH_USD
+        FUTURE = demo_portfolio.FUTURE
+        currency_ticker = demo_portfolio.currency_ticker
+    else:
+        import constants
+        investments = constants.investments
+        CASH_CAD = constants.CASH_CAD
+        CASH_USD = constants.CASH_USD
+        FUTURE = constants.FUTURE
+        currency_ticker = constants.currency_ticker
+
+
 
 
 def set_gui_print(func):
@@ -49,28 +83,42 @@ def accumulate_weighted_average(investment, value):
     weighted_average_accumulated += value * investment["LTReturn"]
 
 
-def calculated_and_show_investment(investment, usdcad_rate: float) -> tuple:
+def calculated_and_show_investment(investment, usdcad_rate: float, quote_date: Optional[datetime] = None) -> tuple:
     """
     Calculate investment value and display details.
     
     Args:
         investment: Investment dict with Ticker, Quantity, Currency, etc.
         usdcad_rate: Current USD to CAD exchange rate
+        quote_date: Optional historical date for quote lookup
         
     Returns:
         Tuple of (value in CAD, investment type)
     """
     global investment_list
-    
+    value = 0.0
+
     if investment["Ticker"] != "":
         dat = yf.Ticker(investment["Ticker"])
-        basic_info = dat.get_fast_info()
-        value = basic_info.last_price * investment["Quantity"]
+        price = 0.0
 
+        if quote_date is not None:
+            if isinstance(quote_date, datetime):
+                quote_date = quote_date.date()
+            history = dat.history(start=quote_date, end=quote_date + timedelta(days=1), interval="1d")
+            if history.empty:
+                raise ValueError(f"No historical quote available for {investment['Ticker']} on {quote_date}")
+            price = float(history["Close"].iloc[0])
+        
+        else:
+            basic_info = dat.get_fast_info()
+            price = basic_info.last_price
+
+        value = price * investment["Quantity"]
         if investment["Currency"] == "USD":
             value = value * usdcad_rate
         valueUSD = value / usdcad_rate
-        gui_print(f'{investment["Name"]} {investment["Ticker"]}: Price: ${basic_info.last_price:,.2f} {investment["Currency"]}: Market Value=${value:,.2f} CAD (${valueUSD:,.2f} USD)')
+        gui_print(f'{investment["Name"]} {investment["Ticker"]}: Price: ${price:,.2f} {investment["Currency"]}: Market Value=${value:,.2f} CAD (${valueUSD:,.2f} USD)')
 
     investment_list[investment["Ticker"]] = (investment["ExpenseRatio"], value)
     accumulate_weighted_average(investment, value)
@@ -78,7 +126,7 @@ def calculated_and_show_investment(investment, usdcad_rate: float) -> tuple:
     return value, investment["Type"]
 
 
-def process_investments(investment_list_input, usdcad_rate: float):
+def process_investments():
     """
     Process all investments and calculate totals.
     
@@ -91,7 +139,8 @@ def process_investments(investment_list_input, usdcad_rate: float):
     """
     global total_intl_stock, total_domestic_stock, total_canadian_stock
     global total_bond, total_cash, tot_cad, expense_ratio_net, investment_expense
-    
+    investment_list_input = investments
+    usdcad_rate = get_currency_conversion(currency_ticker)
     for investment in investment_list_input:
         value, inv_type = calculated_and_show_investment(investment, usdcad_rate)
         

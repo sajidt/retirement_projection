@@ -4,6 +4,7 @@ import os
 import re
 import tkinter as tk
 from datetime import datetime
+from pathlib import Path
 from tkinter import messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -11,8 +12,27 @@ from matplotlib.ticker import FuncFormatter
 
 from charts import _attach_hover_tooltip
 
+DEMO_MODE = False
+DEFAULT_HISTORY_DIR = r'C:\Personal\personal\Finance and Taxes\investment_saves'
+
 # Reference to gui_print function (will be set by main)
 gui_print_func = None
+
+
+def set_demo_mode(is_demo: bool):
+    """Set demo mode and configure default history directory."""
+    global DEMO_MODE
+    DEMO_MODE = is_demo
+
+
+def get_default_history_directory() -> str:
+    """Get the default history directory based on DEMO_MODE."""
+    if DEMO_MODE:
+        demo_data_dir = Path(__file__).resolve().parent / "demo_data"
+        demo_data_dir.mkdir(parents=True, exist_ok=True)
+        return str(demo_data_dir)
+    else:
+        return DEFAULT_HISTORY_DIR
 
 
 def set_gui_print(func):
@@ -72,7 +92,7 @@ def load_and_plot_investment_history(root, directory: str = None):
         directory: Path to portfolio files (uses default if None)
     """
     if directory is None:
-        directory = r'C:\\Personal\\personal\\Finance and Taxes\\investment_saves'
+        directory = get_default_history_directory()
     
     if not directory or not os.path.exists(directory):
         messagebox.showerror("Error", f"Directory not found: {directory}")
@@ -222,7 +242,7 @@ def show_individual_performance(root, directory: str = None):
         directory: Path to portfolio files (uses default if None)
     """
     if directory is None:
-        directory = r'C:\Personal\personal\Finance and Taxes\investment_saves'
+        directory = get_default_history_directory()
     
     if not directory or not os.path.exists(directory):
         messagebox.showerror("Error", f"Directory not found: {directory}")
@@ -345,3 +365,103 @@ def show_individual_performance(root, directory: str = None):
     
     # Initial draw
     draw_investment_chart()
+
+
+def show_swr_trends(root, directory: str = None):
+    """
+    Show Safe Withdrawal Rate trends over time based on historical data.
+    
+    Args:
+        root: Tkinter root window
+        directory: Path to portfolio files (uses default if None)
+    """
+    if directory is None:
+        directory = get_default_history_directory()
+
+    new_window = tk.Toplevel(root)
+    new_window.title("SWR Trends")
+    new_window.geometry("1000x700")
+    
+    # Load historical data
+    pattern = r'portfolio_output_(\d{8}_\d{6})\.txt'
+    data = []
+    
+    if os.path.exists(directory):
+        for filename in os.listdir(directory):
+            match = re.match(pattern, filename)
+            if match:
+                filepath = os.path.join(directory, filename)
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        # Extract "125k with investment expenses" value
+                        match_swr = re.search(r'125k with investment expenses = ([0-9,]+\.[0-9]{2})', content)
+                        if match_swr:
+                            swr_value_str = match_swr.group(1).replace(',', '')
+                            swr_value = float(swr_value_str)
+                            date_str = match.group(1)
+                            date_obj = datetime.strptime(date_str, '%Y%m%d_%H%M%S')
+                            data.append((date_obj, swr_value))
+                except Exception as e:
+                    gui_print(f"Error reading {filename}: {e}")
+    
+    if not data:
+        messagebox.showerror("No Data", f"No SWR data found in {directory}")
+        new_window.destroy()
+        return
+    
+    # Sort by date
+    data.sort(key=lambda x: x[0])
+    dates = [item[0] for item in data]
+    swr_values = [item[1] for item in data]
+    
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(12, 8))
+    line, = ax.plot(dates, swr_values, marker='o', linestyle='-', linewidth=2, markersize=6, 
+           color='blue', label='Safe Withdrawal Rate (%)')
+    
+    ax.set_title("Safe Withdrawal Rate Trends Over Time", fontsize=14, fontweight='bold')
+    ax.set_xlabel("Date", fontsize=12)
+    ax.set_ylabel("Safe Withdrawal Rate (%)", fontsize=12)
+    ax.grid(True, alpha=0.3)
+    
+    # Format y-axis to show percentages
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f'{x:.2f}%'))
+    
+    # Add horizontal reference lines for common SWR guidelines
+    ax.axhline(y=4.0, color='red', linestyle='--', alpha=0.7, label='4% Rule')
+    ax.axhline(y=3.0, color='orange', linestyle='--', alpha=0.7, label='3% Rule')
+    
+    ax.legend(loc='upper left', fontsize=10)
+    
+    # Rotate x-axis labels for better readability
+    fig.autofmt_xdate(rotation=45, ha='right')
+    
+    line.set_picker(5)
+
+    # Embed the figure
+    canvas = FigureCanvasTkAgg(fig, master=new_window)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    def format_swr_tooltip(x, y, artist):
+        if isinstance(x, datetime):
+            date_str = x.strftime('%Y-%m-%d')
+        else:
+            date_str = str(x)
+        return f"{date_str}\nSWR: {y:.2f}%"
+
+    _attach_hover_tooltip(canvas, ax, [line], format_swr_tooltip)
+    
+    # Print summary statistics
+    current_swr = swr_values[-1] if swr_values else 0
+    min_swr = min(swr_values) if swr_values else 0
+    max_swr = max(swr_values) if swr_values else 0
+    avg_swr = sum(swr_values) / len(swr_values) if swr_values else 0
+    
+    gui_print(f"\n\nSWR Trends Summary:")
+    gui_print(f"Current SWR: {current_swr:.2f}%")
+    gui_print(f"Minimum SWR: {min_swr:.2f}%")
+    gui_print(f"Maximum SWR: {max_swr:.2f}%")
+    gui_print(f"Average SWR: {avg_swr:.2f}%")
+    gui_print(f"Data points: {len(data)}")

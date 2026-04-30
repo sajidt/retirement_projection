@@ -3,7 +3,10 @@
 import tkinter as tk
 from tkinter import scrolledtext, filedialog, messagebox
 from datetime import datetime
+from pathlib import Path
 import ai
+
+DEMO_MODE = False
 
 # Reference to callbacks (will be set by main)
 callbacks = {}
@@ -13,6 +16,12 @@ def set_callbacks(callback_dict):
     """Set the callback functions dictionary."""
     global callbacks
     callbacks = callback_dict
+
+
+def set_demo_mode(is_demo: bool):
+    """Set demo mode for GUI defaults."""
+    global DEMO_MODE
+    DEMO_MODE = is_demo
 
 
 def create_gui(root):
@@ -81,9 +90,17 @@ def save_output_to_file(output_box):
     if not content:
         messagebox.showinfo("Save Output", "No output to save.")
         return
+    if DEMO_MODE:
+        demo_data_dir = Path(__file__).resolve().parent / "demo_data"
+        demo_data_dir.mkdir(parents=True, exist_ok=True)
+        initialdir = str(demo_data_dir)
+    else:
+        initialdir = r'C:\Personal\personal\Finance and Taxes\investment_saves'
+
     filename = filedialog.asksaveasfilename(
         defaultextension=".txt",
         filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+        initialdir=initialdir,
         initialfile=f"portfolio_output_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
     )
     if filename:
